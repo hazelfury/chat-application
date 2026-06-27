@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}ChatApp{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --brand: #6C63FF;
+      --brand-dark: #574fd6;
+      --surface: #F8F9FF;
+      --sidebar: #1E1B4B;
+      --text-muted: #6B7280;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--surface); }
+    .navbar { background: var(--sidebar) !important; }
+    .navbar-brand { color: #fff !important; font-weight: 700; letter-spacing: -0.5px; }
+    .btn-brand { background: var(--brand); color: #fff; border: none; }
+    .btn-brand:hover { background: var(--brand-dark); color: #fff; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">⚡ ChatApp</a>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      {% if user.is_authenticated %}
+        <span class="text-white-50 small">👤 {{ user.username }}</span>
+        <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-light">Logout</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+<div class="container">{% block content %}{% endblock %}</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

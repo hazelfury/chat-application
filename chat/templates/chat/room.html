@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}# {{ room.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <a href="/" class="text-muted text-decoration-none small">← Back</a>
+    <h3 class="fw-bold mb-0 mt-1"># {{ room.name }}</h3>
+    {% if room.description %}<p class="text-muted small mb-0">{{ room.description }}</p>{% endif %}
+  </div>
+  <span class="badge text-bg-success">Live</span>
+</div>
+<div class="card border-0 shadow-sm" style="border-radius:14px; overflow:hidden;">
+  <div id="chat-log" style="height:420px; overflow-y:auto; padding:20px; background:#fff; display:flex; flex-direction:column; gap:8px;"></div>
+  <div class="card-footer bg-white border-top d-flex gap-2 p-3">
+    <input id="chat-input" type="text" class="form-control" placeholder="Type a message…" autocomplete="off"/>
+    <button id="send-btn" class="btn btn-brand px-4">Send</button>
+  </div>
+</div>
+
+<style>
+  .msg-bubble { max-width: 72%; padding: 8px 14px; border-radius: 18px; font-size: .9rem; }
+  .msg-own { background: #6C63FF; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg-other { background: #F3F4F6; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg-meta { font-size: .72rem; opacity: .65; margin-bottom: 2px; }
+</style>
+
+<script>
+  const roomSlug = "{{ room.slug }}";
+  const currentUser = "{{ request.user.username }}";
+  const wsUrl = `ws://${window.location.host}/ws/chat/${roomSlug}/`;
+  const socket = new WebSocket(wsUrl);
+  const log = document.getElementById('chat-log');
+
+  function appendMessage(username, message, isHistory) {
+    const own = username === currentUser;
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.alignItems = own ? 'flex-end' : 'flex-start';
+    if (!isHistory) {
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = own ? 'You' : username;
+      wrapper.appendChild(meta);
+    }
+    const bubble = document.createElement('div');
+    bubble.className = `msg-bubble ${own ? 'msg-own' : 'msg-other'}`;
+    bubble.textContent = message;
+    wrapper.appendChild(bubble);
+    log.appendChild(wrapper);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  socket.onmessage = e => {
+    const data = JSON.parse(e.data);
+    appendMessage(data.username, data.message, data.type === 'history');
+  };
+
+  document.getElementById('send-btn').onclick = sendMessage;
+  document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (msg && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ message: msg }));
+      input.value = '';
+    }
+  }
+</script>
+{% endblock %}

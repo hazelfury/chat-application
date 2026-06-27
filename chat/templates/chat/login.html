@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm p-4" style="border-radius:14px;">
+      <h4 class="fw-bold mb-1">Welcome back ⚡</h4>
+      <p class="text-muted small mb-4">Sign in to continue to ChatApp</p>
+      <form method="post">{% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-medium">Username</label>
+          <input name="username" class="form-control" required/>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-medium">Password</label>
+          <input type="password" name="password" class="form-control" required/>
+        </div>
+        {% if form.errors %}<div class="alert alert-danger small py-2">Invalid credentials.</div>{% endif %}
+        <button type="submit" class="btn btn-brand w-100">Sign In</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
