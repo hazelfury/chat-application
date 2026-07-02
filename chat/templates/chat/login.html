@@ -17,6 +17,9 @@
         </div>
         {% if form.errors %}<div class="alert alert-danger small py-2">Invalid credentials.</div>{% endif %}
         <button type="submit" class="btn btn-brand w-100">Sign In</button>
+        <p class="text-center text-muted small mt-3">
+          Don't have an account? <a href="{% url 'register' %}">Register</a>
+        </p>
       </form>
     </div>
   </div>
