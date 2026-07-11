@@ -16,6 +16,7 @@
           <h5 class="mb-0 fw-semibold text-dark"># {{ room.name }}</h5>
         </div>
         <p class="text-muted small mb-0">{{ room.description|default:"No description" }}</p>
+        <p class="text-muted small mt-1 mb-0">{{ room.message_count }} message{{ room.message_count|pluralize }}</p>
       </div>
     </a>
   </div>

@@ -4,10 +4,13 @@ from django.utils.text import slugify
 from .models import Room
 from .forms import RegisterForm
 from django.contrib.auth import login
+from django.db.models import Count
 
 @login_required
 def index(request):
-    rooms = Room.objects.all().order_by('name')
+    rooms = Room.objects.annotate(
+        message_count=Count('messages')
+    ).order_by('name')
     return render(request, 'chat/index.html', {'rooms': rooms})
 
 @login_required
@@ -22,7 +25,14 @@ def create_room(request):
         description = request.POST.get('description', '').strip()
         if name:
             slug = slugify(name)
-            Room.objects.get_or_create(slug=slug, defaults={'name': name, 'description': description})
+            Room.objects.get_or_create(
+                slug=slug,
+                defaults={
+                    'name': name,
+                    'description': description,
+                    'created_by': request.user   # ADD THIS
+                }
+            )
             return redirect('room', room_slug=slug)
     return render(request, 'chat/create_room.html')
 
