@@ -9,18 +9,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_slug = self.scope['url_route']['kwargs']['room_slug']
         self.room_group_name = f'chat_{self.room_slug}'
 
-        # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Send last 20 messages on connect
-        messages = await self.get_recent_messages()
-        for msg in messages:
+        history = await self.get_message_history()
+        for msg in history:
             await self.send(text_data=json.dumps({
                 'type': 'history',
+                'username': msg['username'],
                 'message': msg['content'],
-                'username': msg['user__username'],
-                'timestamp': msg['timestamp'].strftime('%H:%M'),
+                'timestamp': msg['timestamp'],
+            }))
+
+        if history:
+            await self.send(text_data=json.dumps({
+                'type': 'separator',
+                'message': f'{len(history)} previous messages loaded',
             }))
 
     async def disconnect(self, close_code):
@@ -28,40 +32,45 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data = json.loads(text_data)
-        message = data.get('message', '').strip()
-        if not message:
-            return
+        message = data['message']
+        username = self.scope['user'].username if self.scope['user'].is_authenticated else 'Anonymous'
 
-        user = self.scope['user']
-        if not user.is_authenticated:
-            return
+        saved = await self.save_message(username, message)
 
-        # Save to DB
-        await self.save_message(user, message)
-
-        # Broadcast to group
-        await self.channel_layer.group_send(self.room_group_name, {
-            'type': 'chat_message',
-            'message': message,
-            'username': user.username,
-        })
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'message': message,
+                'username': username,
+                'timestamp': saved['timestamp'],
+            }
+        )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
             'type': 'message',
             'message': event['message'],
             'username': event['username'],
+            'timestamp': event['timestamp'],
         }))
 
     @database_sync_to_async
-    def get_recent_messages(self):
-        try:
-            room = Room.objects.get(slug=self.room_slug)
-            return list(room.messages.select_related('user').values('content', 'user__username', 'timestamp').order_by('-timestamp')[:20])[::-1]
-        except Room.DoesNotExist:
-            return []
+    def save_message(self, username, message):
+        room = Room.objects.get(slug=self.room_slug)
+        user = User.objects.filter(username=username).first()
+        msg = Message.objects.create(room=room, user=user, content=message)
+        return {'timestamp': msg.timestamp.strftime('%H:%M')}
 
     @database_sync_to_async
-    def save_message(self, user, content):
+    def get_message_history(self, limit=50):
         room = Room.objects.get(slug=self.room_slug)
-        Message.objects.create(room=room, user=user, content=content)
+        messages = Message.objects.filter(room=room).order_by('timestamp')[:limit]
+        return [
+            {
+                'username': m.user.username if m.user else 'Anonymous',
+                'content': m.content,
+                'timestamp': m.timestamp.strftime('%H:%M'),
+            }
+            for m in messages
+        ]

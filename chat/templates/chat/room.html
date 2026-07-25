@@ -52,8 +52,17 @@
   }
 
   socket.onmessage = e => {
-    const data = JSON.parse(e.data);
-    appendMessage(data.username, data.message, data.type === 'history');
+      const data = JSON.parse(e.data);
+
+      if (data.type === 'separator') {
+          const sep = document.createElement('div');
+          sep.style.cssText = 'text-align:center; color:#9CA3AF; font-size:11px; margin:8px 0; border-top: 1px solid #E5E7EB; padding-top:8px;';
+          sep.textContent = data.message;
+          log.appendChild(sep);
+          return;
+      }
+
+      appendMessage(data.username, data.message, data.timestamp, data.type === 'history');
   };
 
   document.getElementById('send-btn').onclick = sendMessage;
