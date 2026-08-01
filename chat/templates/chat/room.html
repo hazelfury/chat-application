@@ -9,19 +9,37 @@
   </div>
   <span class="badge text-bg-success">Live</span>
 </div>
-<div class="card border-0 shadow-sm" style="border-radius:14px; overflow:hidden;">
-  <div id="chat-log" style="height:420px; overflow-y:auto; padding:20px; background:#fff; display:flex; flex-direction:column; gap:8px;"></div>
-  <div class="card-footer bg-white border-top d-flex gap-2 p-3">
-    <input id="chat-input" type="text" class="form-control" placeholder="Type a message…" autocomplete="off"/>
-    <button id="send-btn" class="btn btn-brand px-4">Send</button>
+
+<div class="row g-3">
+  <!-- Chat area -->
+  <div class="col-md-9">
+    <div class="card border-0 shadow-sm" style="border-radius:14px; overflow:hidden;">
+      <div id="chat-log" style="height:420px; overflow-y:auto; padding:20px; background:#fff; display:flex; flex-direction:column; gap:8px;"></div>
+      <div class="card-footer bg-white border-top d-flex gap-2 p-3">
+        <input id="chat-input" type="text" class="form-control" placeholder="Type a message…" autocomplete="off"/>
+        <button id="send-btn" class="btn btn-brand px-4">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Online users panel -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm p-3" style="border-radius:14px;">
+      <h6 class="fw-semibold mb-3">
+        <span id="online-count" class="badge text-bg-success me-1">0</span>
+        Online
+      </h6>
+      <ul id="online-list" class="list-unstyled mb-0" style="font-size:.875rem;"></ul>
+    </div>
   </div>
 </div>
 
 <style>
-  .msg-bubble { max-width: 72%; padding: 8px 14px; border-radius: 18px; font-size: .9rem; }
+  .msg-bubble { max-width: 80%; padding: 8px 14px; border-radius: 18px; font-size:.9rem; }
   .msg-own { background: #6C63FF; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
   .msg-other { background: #F3F4F6; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
-  .msg-meta { font-size: .72rem; opacity: .65; margin-bottom: 2px; }
+  .msg-meta { font-size:.72rem; opacity:.65; margin-bottom:2px; }
+  .online-dot { width:8px; height:8px; background:#22c55e; border-radius:50%; display:inline-block; margin-right:6px; }
 </style>
 
 <script>
@@ -31,18 +49,16 @@
   const socket = new WebSocket(wsUrl);
   const log = document.getElementById('chat-log');
 
-  function appendMessage(username, message, isHistory) {
+  function appendMessage(username, message, timestamp, isHistory) {
     const own = username === currentUser;
     const wrapper = document.createElement('div');
-    wrapper.style.display = 'flex';
-    wrapper.style.flexDirection = 'column';
-    wrapper.style.alignItems = own ? 'flex-end' : 'flex-start';
-    if (!isHistory) {
-      const meta = document.createElement('span');
-      meta.className = 'msg-meta';
-      meta.textContent = own ? 'You' : username;
-      wrapper.appendChild(meta);
-    }
+    wrapper.style.cssText = `display:flex; flex-direction:column; align-items:${own ? 'flex-end' : 'flex-start'};`;
+
+    const meta = document.createElement('span');
+    meta.className = 'msg-meta';
+    meta.textContent = own ? `You · ${timestamp}` : `${username} · ${timestamp}`;
+    wrapper.appendChild(meta);
+
     const bubble = document.createElement('div');
     bubble.className = `msg-bubble ${own ? 'msg-own' : 'msg-other'}`;
     bubble.textContent = message;
@@ -51,22 +67,47 @@
     log.scrollTop = log.scrollHeight;
   }
 
+  function appendSystemMessage(text) {
+    const el = document.createElement('div');
+    el.style.cssText = 'text-align:center; color:#9CA3AF; font-size:11px; margin:8px 0; border-top:1px solid #E5E7EB; padding-top:8px;';
+    el.textContent = text;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function updateOnlineUsers(users) {
+    const list = document.getElementById('online-list');
+    const count = document.getElementById('online-count');
+    count.textContent = users.length;
+    list.innerHTML = '';
+    users.forEach(user => {
+      const li = document.createElement('li');
+      li.className = 'mb-2';
+      li.innerHTML = `<span class="online-dot"></span>${user === currentUser ? '<strong>' + user + ' (you)</strong>' : user}`;
+      list.appendChild(li);
+    });
+  }
+
   socket.onmessage = e => {
-      const data = JSON.parse(e.data);
+    const data = JSON.parse(e.data);
 
-      if (data.type === 'separator') {
-          const sep = document.createElement('div');
-          sep.style.cssText = 'text-align:center; color:#9CA3AF; font-size:11px; margin:8px 0; border-top: 1px solid #E5E7EB; padding-top:8px;';
-          sep.textContent = data.message;
-          log.appendChild(sep);
-          return;
-      }
-
+    if (data.type === 'online_users') {
+      updateOnlineUsers(data.users);
+    } else if (data.type === 'separator') {
+      appendSystemMessage(data.message);
+    } else if (data.type === 'user_join') {
+      appendSystemMessage(`${data.username} joined the room`);
+    } else if (data.type === 'user_leave') {
+      appendSystemMessage(`${data.username} left the room`);
+    } else {
       appendMessage(data.username, data.message, data.timestamp, data.type === 'history');
+    }
   };
 
   document.getElementById('send-btn').onclick = sendMessage;
-  document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  document.getElementById('chat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMessage();
+  });
 
   function sendMessage() {
     const input = document.getElementById('chat-input');

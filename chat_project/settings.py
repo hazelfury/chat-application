@@ -51,7 +51,9 @@ ASGI_APPLICATION = 'chat_project.asgi.application'
 # Channel layers - using Redis (production) or InMemory (dev fallback)
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',  # Switch to Redis in Week 2
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {'hosts': [('127.0.0.1', 6379)],
+        },
     }
 }
 
