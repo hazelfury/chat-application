@@ -6,4 +6,6 @@ urlpatterns = [
     path('room/<slug:room_slug>/', views.room, name='room'),
     path('create-room/', views.create_room, name='create_room'),
     path('register/', views.register, name='register'),
+    path('dm/', views.dm_inbox, name='dm_inbox'),
+    path('dm/<str:username>/', views.dm_conversation, name='dm_conversation'),
 ]

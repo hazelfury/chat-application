@@ -5,6 +5,8 @@ from .models import Room
 from .forms import RegisterForm
 from django.contrib.auth import login
 from django.db.models import Count
+from django.contrib.auth.models import User
+from .models import DirectMessage
 
 @login_required
 def index(request):
@@ -48,3 +50,14 @@ def register(request):
     else:
         form = RegisterForm()
     return render(request, 'chat/register.html', {'form': form})
+
+@login_required
+def dm_inbox(request):
+    # Get all users who have exchanged DMs with current user
+    users = User.objects.exclude(id=request.user.id)
+    return render(request, 'chat/dm_inbox.html', {'users': users})
+
+@login_required
+def dm_conversation(request, username):
+    other_user = get_object_or_404(User, username=username)
+    return render(request, 'chat/dm_conversation.html', {'other_user': other_user})
