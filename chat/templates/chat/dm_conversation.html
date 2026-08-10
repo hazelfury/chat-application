@@ -31,6 +31,13 @@
   const socket = new WebSocket(wsUrl);
   const log = document.getElementById('dm-log');
 
+  const notifSocket = new WebSocket(`ws://${window.location.host}/ws/notifications/`);
+  notifSocket.onopen = () => {
+    notifSocket.send(JSON.stringify({
+      type: 'mark_read',
+      sender: otherUsername,
+    }));
+  };
   function appendMessage(sender, message, timestamp) {
     const own = sender === currentUser;
     const wrapper = document.createElement('div');

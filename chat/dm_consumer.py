@@ -47,12 +47,25 @@ class DMConsumer(AsyncWebsocketConsumer):
 
         saved = await self.save_dm(message)
 
+        # Broadcast message to conversation
         await self.channel_layer.group_send(self.dm_group, {
             'type': 'dm_message',
             'message': message,
             'sender': self.me.username,
             'timestamp': saved['timestamp'],
         })
+
+        # Send notification to receiver
+        unread_count = await self.get_receiver_unread_count()
+        await self.channel_layer.group_send(
+            f'notifications_{self.other_username}',
+            {
+                'type': 'new_dm_notification',
+                'sender': self.me.username,
+                'message': message[:50],
+                'count': unread_count,
+            }
+        )
 
     async def dm_message(self, event):
         await self.send(text_data=json.dumps({
@@ -89,3 +102,12 @@ class DMConsumer(AsyncWebsocketConsumer):
             }
             for m in messages
         ]
+
+    @database_sync_to_async
+    def get_receiver_unread_count(self):
+        from django.contrib.auth.models import User
+        receiver = User.objects.get(username=self.other_username)
+        return DirectMessage.objects.filter(
+            receiver=receiver,
+            is_read=False
+        ).count()

@@ -12,13 +12,44 @@
       --brand-dark: #574fd6;
       --surface: #F8F9FF;
       --sidebar: #1E1B4B;
-      --text-muted: #6B7280;
     }
     body { font-family: 'Inter', sans-serif; background: var(--surface); }
     .navbar { background: var(--sidebar) !important; }
     .navbar-brand { color: #fff !important; font-weight: 700; letter-spacing: -0.5px; }
     .btn-brand { background: var(--brand); color: #fff; border: none; }
     .btn-brand:hover { background: var(--brand-dark); color: #fff; }
+    .notif-badge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: #ef4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      display: none;
+    }
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
+    .notif-toast {
+      background: #1E1B4B;
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-top: 8px;
+      font-size: 13px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+      cursor: pointer;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -27,14 +58,65 @@
     <a class="navbar-brand" href="/">⚡ ChatApp</a>
     <div class="ms-auto d-flex align-items-center gap-3">
       {% if user.is_authenticated %}
-        <a href="{% url 'dm_inbox' %}" class="btn btn-sm btn-outline-light me-2">💬 DMs</a>
+        <div style="position:relative;">
+          <a href="{% url 'dm_inbox' %}" class="btn btn-sm btn-outline-light">💬 DMs</a>
+          <span id="notif-badge" class="notif-badge">0</span>
+        </div>
         <span class="text-white-50 small">👤 {{ user.username }}</span>
         <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-light">Logout</a>
       {% endif %}
     </div>
   </div>
 </nav>
+
 <div class="container">{% block content %}{% endblock %}</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+{% if user.is_authenticated %}
+<script>
+  const notifSocket = new WebSocket(`ws://${window.location.host}/ws/notifications/`);
+  const badge = document.getElementById('notif-badge');
+  const originalTitle = document.title;
+
+  notifSocket.onmessage = e => {
+    const data = JSON.parse(e.data);
+
+    if (data.type === 'unread_count') {
+      updateBadge(data.count);
+    }
+
+    if (data.type === 'new_dm') {
+      showToast(data.sender, data.message, data.count);
+      updateBadge(data.count);
+      // Flash tab title
+      document.title = `(${data.count}) New DM from ${data.sender}`;
+      setTimeout(() => { document.title = originalTitle; }, 4000);
+    }
+  };
+
+  function updateBadge(count) {
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function showToast(sender, message, count) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'notif-toast';
+    toast.innerHTML = `<strong>💬 ${sender}</strong><br><span style="opacity:.8">${message}</span>`;
+    toast.onclick = () => { window.location.href = `/dm/${sender}/`; };
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 5000);
+  }
+</script>
+{% endif %}
 </body>
 </html>
