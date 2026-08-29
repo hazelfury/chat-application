@@ -117,7 +117,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return {'timestamp': msg.timestamp.strftime('%H:%M')}
 
     @database_sync_to_async
-    def get_message_history(self, limit=50):
+    def get_message_history(self, limit=20):
         room = Room.objects.get(slug=self.room_slug)
         messages = Message.objects.filter(room=room).order_by('timestamp')[:limit]
         return [

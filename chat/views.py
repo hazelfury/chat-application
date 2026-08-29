@@ -1,12 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.utils.text import slugify
-from .models import Room
+from .models import Room, Message, DirectMessage
 from .forms import RegisterForm
 from django.contrib.auth import login
 from django.db.models import Count
 from django.contrib.auth.models import User
-from .models import DirectMessage
+from django.http import JsonResponse
+from django.core.paginator import Paginator
 
 @login_required
 def index(request):
@@ -61,3 +62,63 @@ def dm_inbox(request):
 def dm_conversation(request, username):
     other_user = get_object_or_404(User, username=username)
     return render(request, 'chat/dm_conversation.html', {'other_user': other_user})
+
+@login_required
+def load_more_messages(request, room_slug):
+    room = get_object_or_404(Room, slug=room_slug)
+    page = int(request.GET.get('page', 1))
+    all_messages = Message.objects.filter(room=room).order_by('-timestamp')
+    paginator = Paginator(all_messages, 20)  # 20 messages per page
+
+    try:
+        messages_page = paginator.page(page)
+    except Exception:
+        return JsonResponse({'messages': [], 'has_more': False})
+
+    messages = [
+        {
+            'username': m.user.username if m.user else 'Anonymous',
+            'content': m.content,
+            'timestamp': m.timestamp.strftime('%H:%M'),
+        }
+        for m in reversed(list(messages_page.object_list))
+    ]
+
+    return JsonResponse({
+        'messages': messages,
+        'has_more': messages_page.has_next(),
+        'next_page': page + 1 if messages_page.has_next() else None,
+    })
+
+@login_required
+def load_more_dms(request, username):
+    other_user = get_object_or_404(User, username=username)
+    page = int(request.GET.get('page', 1))
+
+    all_dms = DirectMessage.objects.filter(
+        sender=request.user, receiver=other_user
+    ) | DirectMessage.objects.filter(
+        sender=other_user, receiver=request.user
+    )
+    all_dms = all_dms.order_by('-timestamp')
+    paginator = Paginator(all_dms, 20)
+
+    try:
+        dms_page = paginator.page(page)
+    except Exception:
+        return JsonResponse({'messages': [], 'has_more': False})
+
+    messages = [
+        {
+            'sender': m.sender.username,
+            'content': m.content,
+            'timestamp': m.timestamp.strftime('%H:%M'),
+        }
+        for m in reversed(list(dms_page.object_list))
+    ]
+
+    return JsonResponse({
+        'messages': messages,
+        'has_more': dms_page.has_next(),
+        'next_page': page + 1 if dms_page.has_next() else None,
+    })

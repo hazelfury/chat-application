@@ -14,6 +14,14 @@
   <!-- Chat area -->
   <div class="col-md-9">
     <div class="card border-0 shadow-sm" style="border-radius:14px; overflow:hidden;">
+
+      <!-- Load more button -->
+      <div id="load-more-container" class="text-center p-2 border-bottom" style="display:none !important;">
+        <button id="load-more-btn" class="btn btn-sm btn-outline-secondary">
+          ⬆ Load older messages
+        </button>
+      </div>
+
       <div id="chat-log" style="height:420px; overflow-y:auto; padding:20px; background:#fff; display:flex; flex-direction:column; gap:8px;"></div>
       <div class="card-footer bg-white border-top d-flex gap-2 p-3">
         <input id="chat-input" type="text" class="form-control" placeholder="Type a message…" autocomplete="off"/>
@@ -35,9 +43,9 @@
 </div>
 
 <style>
-  .msg-bubble { max-width: 80%; padding: 8px 14px; border-radius: 18px; font-size:.9rem; }
-  .msg-own { background: #6C63FF; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-  .msg-other { background: #F3F4F6; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg-bubble { max-width:80%; padding:8px 14px; border-radius:18px; font-size:.9rem; }
+  .msg-own { background:#6C63FF; color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .msg-other { background:#F3F4F6; color:#111; align-self:flex-start; border-bottom-left-radius:4px; }
   .msg-meta { font-size:.72rem; opacity:.65; margin-bottom:2px; }
   .online-dot { width:8px; height:8px; background:#22c55e; border-radius:50%; display:inline-block; margin-right:6px; }
 </style>
@@ -48,8 +56,11 @@
   const wsUrl = `ws://${window.location.host}/ws/chat/${roomSlug}/`;
   const socket = new WebSocket(wsUrl);
   const log = document.getElementById('chat-log');
+  let currentPage = 2;  // Page 1 loaded via WebSocket on connect
+  let hasMore = true;
+  let isLoading = false;
 
-  function appendMessage(username, message, timestamp, isHistory) {
+  function appendMessage(username, message, timestamp, prepend=false) {
     const own = username === currentUser;
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `display:flex; flex-direction:column; align-items:${own ? 'flex-end' : 'flex-start'};`;
@@ -63,16 +74,24 @@
     bubble.className = `msg-bubble ${own ? 'msg-own' : 'msg-other'}`;
     bubble.textContent = message;
     wrapper.appendChild(bubble);
-    log.appendChild(wrapper);
-    log.scrollTop = log.scrollHeight;
+
+    if (prepend) {
+      log.insertBefore(wrapper, log.firstChild);
+    } else {
+      log.appendChild(wrapper);
+      log.scrollTop = log.scrollHeight;
+    }
   }
 
-  function appendSystemMessage(text) {
+  function appendSystemMessage(text, prepend=false) {
     const el = document.createElement('div');
     el.style.cssText = 'text-align:center; color:#9CA3AF; font-size:11px; margin:8px 0; border-top:1px solid #E5E7EB; padding-top:8px;';
     el.textContent = text;
-    log.appendChild(el);
-    log.scrollTop = log.scrollHeight;
+    if (prepend) {
+      log.insertBefore(el, log.firstChild);
+    } else {
+      log.appendChild(el);
+    }
   }
 
   function updateOnlineUsers(users) {
@@ -90,20 +109,63 @@
 
   socket.onmessage = e => {
     const data = JSON.parse(e.data);
-
     if (data.type === 'online_users') {
       updateOnlineUsers(data.users);
     } else if (data.type === 'separator') {
       appendSystemMessage(data.message);
+      // Show load more button if there are older messages
+      checkHasMore();
     } else if (data.type === 'user_join') {
       appendSystemMessage(`${data.username} joined the room`);
     } else if (data.type === 'user_leave') {
       appendSystemMessage(`${data.username} left the room`);
     } else {
-      appendMessage(data.username, data.message, data.timestamp, data.type === 'history');
+      appendMessage(data.username, data.message, data.timestamp);
     }
   };
 
+  async function checkHasMore() {
+    const response = await fetch(`/api/messages/${roomSlug}/?page=2`);
+    const data = await response.json();
+    if (data.messages.length > 0 || data.has_more) {
+      document.getElementById('load-more-container').style.setProperty('display', 'block', 'important');
+    }
+  }
+
+  async function loadMoreMessages() {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+    const btn = document.getElementById('load-more-btn');
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+
+    const scrollHeightBefore = log.scrollHeight;
+
+    const response = await fetch(`/api/messages/${roomSlug}/?page=${currentPage}`);
+    const data = await response.json();
+
+    if (data.messages.length > 0) {
+      // Prepend messages in correct order
+      const fragment = document.createDocumentFragment();
+      data.messages.forEach(msg => {
+        appendMessage(msg.username, msg.content, msg.timestamp, true);
+      });
+      // Keep scroll position stable
+      log.scrollTop = log.scrollHeight - scrollHeightBefore;
+      currentPage++;
+    }
+
+    hasMore = data.has_more;
+    if (!hasMore) {
+      document.getElementById('load-more-container').style.setProperty('display', 'none', 'important');
+    }
+
+    btn.textContent = '⬆ Load older messages';
+    btn.disabled = false;
+    isLoading = false;
+  }
+
+  document.getElementById('load-more-btn').onclick = loadMoreMessages;
   document.getElementById('send-btn').onclick = sendMessage;
   document.getElementById('chat-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') sendMessage();
