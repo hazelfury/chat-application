@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-week1-dev-key-change-in-production'
 DEBUG = True
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'chat-application-production-3b43.up.railway.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -93,3 +93,7 @@ if 'test' in sys.argv:
     }
 
 WSGI_APPLICATION = 'chat_project.wsgi.application'
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://chat-application-production-3b43.up.railway.app',
+]
