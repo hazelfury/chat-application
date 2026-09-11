@@ -80,6 +80,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = []
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
@@ -90,3 +91,5 @@ if 'test' in sys.argv:
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
         }
     }
+
+WSGI_APPLICATION = 'chat_project.wsgi.application'
