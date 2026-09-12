@@ -53,7 +53,7 @@
 <script>
   const roomSlug = "{{ room.slug }}";
   const currentUser = "{{ request.user.username }}";
-  const wsUrl = `ws://${window.location.host}/ws/chat/${roomSlug}/`;
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/chat/${roomSlug}/`;
   const socket = new WebSocket(wsUrl);
   const log = document.getElementById('chat-log');
   let currentPage = 2;  // Page 1 loaded via WebSocket on connect

@@ -31,7 +31,7 @@
 <script>
   const otherUsername = "{{ other_user.username }}";
   const currentUser = "{{ request.user.username }}";
-  const wsUrl = `ws://${window.location.host}/ws/dm/${otherUsername}/`;
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/dm/${otherUsername}/`;
   const socket = new WebSocket(wsUrl);
   const log = document.getElementById('dm-log');
 

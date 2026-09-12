@@ -81,7 +81,7 @@
 
 {% if user.is_authenticated %}
 <script>
-  const notifSocket = new WebSocket(`ws://${window.location.host}/ws/notifications/`);
+  const notifSocket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/notifications/`);
   const badge = document.getElementById('notif-badge');
   const originalTitle = document.title;
 
